@@ -10,7 +10,7 @@
 
 ## Deployment Architecture
 
-**Frontend**: Static files served by nginx
+**Frontend**: Static files served by Apache
 **Backend**: Node.js API server managed by PM2
 
 ---
@@ -27,8 +27,15 @@ sudo apt update && sudo apt upgrade -y
 curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 sudo apt install -y nodejs
 
-# Install nginx
-sudo apt install -y nginx
+# Install Apache
+sudo apt install -y apache2
+
+# Enable required Apache modules
+sudo a2enmod proxy
+sudo a2enmod proxy_http
+sudo a2enmod rewrite
+sudo a2enmod ssl
+sudo a2enmod headers
 
 # Install PM2 (process manager)
 sudo npm install -g pm2
@@ -100,100 +107,106 @@ pm2 save
 pm2 startup
 ```
 
-### Step 5: nginx Configuration
+### Step 5: Apache Configuration
 
-Create nginx configuration:
+Create Apache virtual host configuration:
 
 ```bash
-sudo nano /etc/nginx/sites-available/webmail
+sudo nano /etc/apache2/sites-available/webmail.conf
 ```
 
-```nginx
+```apache
 # Redirect HTTP to HTTPS
-server {
-    listen 80;
-    listen [::]:80;
-    server_name webmail.veebimajutus.ee;
+<VirtualHost *:80>
+    ServerName webmail.veebimajutus.ee
     
-    return 301 https://$server_name$request_uri;
-}
+    RewriteEngine On
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}$1 [R=301,L]
+</VirtualHost>
 
 # HTTPS Server
-server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
-    server_name webmail.veebimajutus.ee;
-
-    # SSL Configuration (Let's Encrypt)
-    ssl_certificate /etc/letsencrypt/live/webmail.veebimajutus.ee/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/webmail.veebimajutus.ee/privkey.pem;
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers HIGH:!aNULL:!MD5;
-    ssl_prefer_server_ciphers on;
-
+<VirtualHost *:443>
+    ServerName webmail.veebimajutus.ee
+    
+    # SSL Configuration
+    SSLEngine on
+    SSLCertificateFile /etc/letsencrypt/live/webmail.veebimajutus.ee/fullchain.pem
+    SSLCertificateKeyFile /etc/letsencrypt/live/webmail.veebimajutus.ee/privkey.pem
+    SSLProtocol all -SSLv2 -SSLv3 -TLSv1 -TLSv1.1
+    SSLCipherSuite HIGH:!aNULL:!MD5
+    
     # Security Headers
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-XSS-Protection "1; mode=block" always;
-
-    # Root directory (built frontend)
-    root /var/www/webmail/dist;
-    index index.html;
-
-    # Gzip compression
-    gzip on;
-    gzip_vary on;
-    gzip_min_length 1024;
-    gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json;
-
-    # Frontend (SPA)
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    # Backend API
-    location /api {
-        proxy_pass http://localhost:3001;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-XSS-Protection "1; mode=block"
+    
+    # Document Root (Frontend static files)
+    DocumentRoot /var/www/webmail/dist
+    
+    <Directory /var/www/webmail/dist>
+        Options -Indexes +FollowSymLinks
+        AllowOverride All
+        Require all granted
         
-        # Timeouts for email operations
-        proxy_connect_timeout 60s;
-        proxy_send_timeout 60s;
-        proxy_read_timeout 60s;
-    }
-
+        # SPA routing - fallback to index.html
+        RewriteEngine On
+        RewriteBase /
+        RewriteRule ^index\.html$ - [L]
+        RewriteCond %{REQUEST_FILENAME} !-f
+        RewriteCond %{REQUEST_FILENAME} !-d
+        RewriteRule . /index.html [L]
+    </Directory>
+    
+    # Backend API Proxy
+    ProxyPreserveHost On
+    ProxyTimeout 60
+    
+    <Location /api>
+        ProxyPass http://localhost:3001/api
+        ProxyPassReverse http://localhost:3001/api
+        
+        # WebSocket support (if needed)
+        RewriteEngine On
+        RewriteCond %{HTTP:Upgrade} =websocket [NC]
+        RewriteRule /api/(.*) ws://localhost:3001/api/$1 [P,L]
+    </Location>
+    
     # Static assets caching
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-}
+    <FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+    
+    # Logging
+    ErrorLog ${APACHE_LOG_DIR}/webmail-error.log
+    CustomLog ${APACHE_LOG_DIR}/webmail-access.log combined
+</VirtualHost>
 ```
 
 Enable the site:
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/webmail /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
+# Disable default site (optional)
+sudo a2dissite 000-default.conf
+
+# Enable webmail site
+sudo a2ensite webmail.conf
+
+# Test configuration
+sudo apache2ctl configtest
+
+# Restart Apache
+sudo systemctl restart apache2
 ```
 
 ### Step 6: SSL Certificate (Let's Encrypt)
 
 ```bash
 # Install Certbot
-sudo apt install -y certbot python3-certbot-nginx
+sudo apt install -y certbot python3-certbot-apache
 
 # Get certificate
-sudo certbot --nginx -d webmail.veebimajutus.ee
+sudo certbot --apache -d webmail.veebimajutus.ee
 
 # Auto-renewal is configured automatically
 # Test renewal:
@@ -208,6 +221,14 @@ sudo ufw allow 22/tcp
 sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
 sudo ufw enable
+```
+
+### Step 8: Set Permissions
+
+```bash
+# Ensure Apache can read the files
+sudo chown -R www-data:www-data /var/www/webmail/dist/
+sudo chmod -R 755 /var/www/webmail/dist/
 ```
 
 ---
@@ -228,10 +249,14 @@ npm run install:all
 # Build frontend
 npm run build
 
+# Set permissions
+sudo chown -R www-data:www-data /var/www/webmail/dist/
+sudo chmod -R 755 /var/www/webmail/dist/
+
 # Restart backend
 pm2 restart webmail-backend
 
-# No need to restart nginx - static files updated automatically
+# No need to restart Apache - static files updated automatically
 ```
 
 ---
@@ -250,16 +275,16 @@ pm2 logs webmail-backend
 pm2 monit
 ```
 
-### Check nginx Status
+### Check Apache Status
 ```bash
-# Check nginx status
-sudo systemctl status nginx
+# Check Apache status
+sudo systemctl status apache2
 
-# View nginx access logs
-sudo tail -f /var/log/nginx/access.log
+# View Apache access logs
+sudo tail -f /var/log/apache2/webmail-access.log
 
-# View nginx error logs
-sudo tail -f /var/log/nginx/error.log
+# View Apache error logs
+sudo tail -f /var/log/apache2/webmail-error.log
 ```
 
 ### System Resources
@@ -290,16 +315,16 @@ sudo lsof -i :3001
 pm2 restart webmail-backend
 ```
 
-### nginx errors
+### Apache errors
 ```bash
-# Check nginx error log
-sudo tail -f /var/log/nginx/error.log
+# Check Apache error log
+sudo tail -f /var/log/apache2/webmail-error.log
 
 # Test configuration
-sudo nginx -t
+sudo apache2ctl configtest
 
-# Reload nginx
-sudo systemctl reload nginx
+# Restart Apache
+sudo systemctl restart apache2
 ```
 
 ### Frontend not loading
@@ -307,11 +332,12 @@ sudo systemctl reload nginx
 # Check if files exist
 ls -la /var/www/webmail/dist/
 
-# Check nginx is serving files
+# Check Apache is serving files
 curl -I http://localhost/
 
 # Check file permissions
 sudo chown -R www-data:www-data /var/www/webmail/dist/
+sudo chmod -R 755 /var/www/webmail/dist/
 ```
 
 ### API calls failing
@@ -325,8 +351,22 @@ pm2 logs webmail-backend
 # Test API directly
 curl http://localhost:3001/api/health
 
-# Check nginx proxy
-sudo tail -f /var/log/nginx/error.log
+# Check Apache proxy
+sudo tail -f /var/log/apache2/webmail-error.log
+
+# Verify proxy modules are enabled
+sudo apache2ctl -M | grep proxy
+```
+
+### SPA routing not working
+```bash
+# Verify .htaccess or rewrite rules
+# Check Apache error log for rewrite issues
+sudo tail -f /var/log/apache2/webmail-error.log
+
+# Ensure mod_rewrite is enabled
+sudo a2enmod rewrite
+sudo systemctl restart apache2
 ```
 
 ---
@@ -359,6 +399,11 @@ npm run install:all
 echo "🔨 Building frontend..."
 npm run build
 
+# Set permissions
+echo "🔐 Setting permissions..."
+sudo chown -R www-data:www-data /var/www/webmail/dist/
+sudo chmod -R 755 /var/www/webmail/dist/
+
 # Restart backend
 echo "🔄 Restarting backend..."
 pm2 restart webmail-backend
@@ -386,9 +431,9 @@ Your webmail application should now be running at:
 **https://webmail.veebimajutus.ee**
 
 **Architecture:**
-- ✅ Frontend: Static files served by nginx from `/var/www/webmail/dist/`
+- ✅ Frontend: Static files served by Apache from `/var/www/webmail/dist/`
 - ✅ Backend: Node.js API managed by PM2 on port 3001
-- ✅ nginx: Proxies `/api` requests to backend, serves static files for everything else
+- ✅ Apache: Proxies `/api` requests to backend, serves static files for everything else
 
 Test all features:
 - [ ] Login works
