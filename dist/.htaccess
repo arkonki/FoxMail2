@@ -3,28 +3,12 @@
 RewriteEngine On
 RewriteBase /
 
-# Security Headers
-<IfModule mod_headers.c>
-    Header set X-Content-Type-Options "nosniff"
-    Header set X-Frame-Options "SAMEORIGIN"
-    Header set X-XSS-Protection "1; mode=block"
-    Header set Referrer-Policy "strict-origin-when-cross-origin"
-</IfModule>
-
-# API Proxy to Backend (Port 3001)
-# Note: This requires mod_proxy and mod_proxy_http to be enabled
-<IfModule mod_proxy.c>
-    ProxyPreserveHost On
-    ProxyPass /api http://localhost:3001/api
-    ProxyPassReverse /api http://localhost:3001/api
-</IfModule>
-
 # SPA Routing - Fallback to index.html
 # Don't rewrite files or directories that exist
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 
-# Don't rewrite API calls (they're handled by proxy above)
+# Don't rewrite API calls (handled by VirtualHost ProxyPass)
 RewriteCond %{REQUEST_URI} !^/api
 
 # Rewrite everything else to index.html

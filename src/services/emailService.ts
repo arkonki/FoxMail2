@@ -5,6 +5,15 @@ class EmailService {
   private sessionId: string | null = null;
   private connected = false;
 
+  // CRITICAL: Ensure we're using the correct API base URL
+  private getApiUrl(endpoint: string): string {
+    // In production, API calls go through Apache ProxyPass at /api
+    // In development, Vite proxy handles /api -> http://localhost:3001/api
+    const apiUrl = `/api${endpoint}`;
+    console.log('🌐 API URL:', apiUrl);
+    return apiUrl;
+  }
+
   private generateSessionId(): string {
     return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
@@ -17,8 +26,10 @@ class EmailService {
       this.sessionId = this.generateSessionId();
       console.log('🆔 Generated session ID:', this.sessionId);
 
-      console.log('📡 Making POST request to /api/imap/connect...');
-      const response = await axios.post('/api/imap/connect', {
+      const url = this.getApiUrl('/imap/connect');
+      console.log('📡 Making POST request to:', url);
+      
+      const response = await axios.post(url, {
         email: account.email,
         password: account.password,
         sessionId: this.sessionId,
@@ -35,11 +46,27 @@ class EmailService {
       }
     } catch (error) {
       console.error('❌ EmailService connection failed:', error);
+      
+      // Log detailed error information
+      if (axios.isAxiosError(error)) {
+        console.error('❌ Axios Error Details:', {
+          message: error.message,
+          code: error.code,
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          url: error.config?.url,
+        });
+      }
+      
       this.connected = false;
       this.sessionId = null;
       
       // Re-throw with user-friendly message
       if (axios.isAxiosError(error)) {
+        if (error.code === 'ERR_NETWORK') {
+          throw new Error('Cannot connect to email server - network error. Check if backend is running.');
+        }
         if (error.response?.status === 401) {
           throw new Error('Invalid email or password');
         }
@@ -65,7 +92,7 @@ class EmailService {
     }
 
     try {
-      await axios.post('/api/imap/disconnect', {
+      await axios.post(this.getApiUrl('/imap/disconnect'), {
         sessionId: this.sessionId,
       });
       this.connected = false;
@@ -87,7 +114,7 @@ class EmailService {
     }
 
     try {
-      const response = await axios.post('/api/imap/folders', {
+      const response = await axios.post(this.getApiUrl('/imap/folders'), {
         sessionId: this.sessionId,
       });
       console.log('✅ Folders received:', response.data.folders?.length || 0);
@@ -106,7 +133,7 @@ class EmailService {
     }
 
     try {
-      const response = await axios.post('/api/imap/emails', {
+      const response = await axios.post(this.getApiUrl('/imap/emails'), {
         sessionId: this.sessionId,
         folder,
         limit,
@@ -127,7 +154,7 @@ class EmailService {
     }
 
     try {
-      await axios.post('/api/imap/mark-read', {
+      await axios.post(this.getApiUrl('/imap/mark-read'), {
         sessionId: this.sessionId,
         folder,
         uid,
@@ -147,7 +174,7 @@ class EmailService {
     }
 
     try {
-      await axios.post('/api/imap/toggle-star', {
+      await axios.post(this.getApiUrl('/imap/toggle-star'), {
         sessionId: this.sessionId,
         folder,
         uid,
@@ -168,7 +195,7 @@ class EmailService {
     }
 
     try {
-      await axios.post('/api/imap/delete', {
+      await axios.post(this.getApiUrl('/imap/delete'), {
         sessionId: this.sessionId,
         folder,
         uid,
@@ -188,7 +215,7 @@ class EmailService {
     }
 
     try {
-      await axios.post('/api/imap/move', {
+      await axios.post(this.getApiUrl('/imap/move'), {
         sessionId: this.sessionId,
         fromFolder,
         uid,
@@ -209,7 +236,7 @@ class EmailService {
     }
 
     try {
-      await axios.post('/api/smtp/send', {
+      await axios.post(this.getApiUrl('/smtp/send'), {
         sessionId: this.sessionId,
         emailData,
       });

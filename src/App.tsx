@@ -1,22 +1,20 @@
 import { useEffect } from 'react';
-import { LoginPage } from './components/auth/LoginPage';
-import { MainLayout } from './components/layout/MainLayout';
 import { useAuthStore } from './store/authStore';
-import { useUIStore } from './store/uiStore';
+import { LoginForm } from './components/auth/LoginForm';
+import { MainLayout } from './components/layout/MainLayout';
 
 function App() {
-  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
-  const theme = useUIStore(state => state.theme);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [theme]);
+    console.log('🔐 App: isAuthenticated =', isAuthenticated);
+  }, [isAuthenticated]);
 
-  return isAuthenticated ? <MainLayout /> : <LoginPage />;
+  if (!isAuthenticated) {
+    return <LoginForm />;
+  }
+
+  return <MainLayout />;
 }
 
 export default App;
