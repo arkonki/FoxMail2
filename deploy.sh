@@ -36,9 +36,9 @@ fi
 echo -e "${YELLOW}🛑 Stopping existing process...${NC}"
 pm2 stop webmail-backend 2>/dev/null || true
 
-# Start with PM2
+# Start with PM2 using .cjs config file
 echo -e "${YELLOW}▶️  Starting backend with PM2...${NC}"
-pm2 start ecosystem.config.js
+pm2 start ecosystem.config.cjs
 
 # Save PM2 configuration
 pm2 save
