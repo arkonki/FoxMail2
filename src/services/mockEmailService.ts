@@ -1,38 +1,38 @@
 import { Email, EmailFolder, EmailAccount } from '../types/email';
 
 class MockEmailService {
-  private connected = false;
-  private account: EmailAccount | null = null;
+  private isConnected = false;
+  private currentAccount: EmailAccount | null = null;
 
   async connect(account: EmailAccount): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 1000));
-    this.account = account;
-    this.connected = true;
+    this.currentAccount = account;
+    this.isConnected = true;
   }
 
   async disconnect(): Promise<void> {
-    this.connected = false;
-    this.account = null;
+    this.isConnected = false;
+    this.currentAccount = null;
   }
 
   async getFolders(): Promise<EmailFolder[]> {
     return [
-      { name: 'Inbox', path: 'INBOX', specialUse: 'inbox', unreadCount: 3 },
-      { name: 'Sent', path: 'SENT', specialUse: 'sent', unreadCount: 0 },
-      { name: 'Drafts', path: 'DRAFTS', specialUse: 'drafts', unreadCount: 1 },
-      { name: 'Trash', path: 'TRASH', specialUse: 'trash', unreadCount: 0 },
-      { name: 'Junk', path: 'JUNK', specialUse: 'junk', unreadCount: 0 },
+      { id: 'INBOX', name: 'Inbox', path: 'INBOX', specialUse: 'inbox', unreadCount: 3 },
+      { id: 'SENT', name: 'Sent', path: 'SENT', specialUse: 'sent', unreadCount: 0 },
+      { id: 'DRAFTS', name: 'Drafts', path: 'DRAFTS', specialUse: 'drafts', unreadCount: 1 },
+      { id: 'TRASH', name: 'Trash', path: 'TRASH', specialUse: 'trash', unreadCount: 0 },
+      { id: 'JUNK', name: 'Junk', path: 'JUNK', specialUse: 'junk', unreadCount: 0 },
     ];
   }
 
-  async getEmails(folder: string): Promise<Email[]> {
+  async getEmails(): Promise<Email[]> {
     await new Promise(resolve => setTimeout(resolve, 800));
 
     const mockEmails: Email[] = [
       {
         id: '1',
         from: [{ name: 'Sarah Johnson', address: 'sarah@example.com' }],
-        to: [{ address: this.account?.email || 'you@veebimajutus.ee' }],
+        to: [{ address: this.currentAccount?.email || 'you@veebimajutus.ee' }],
         subject: 'Q4 Marketing Strategy Review',
         body: {
           text: 'Hi team, I wanted to share our Q4 marketing strategy...',
@@ -41,6 +41,7 @@ class MockEmailService {
         date: new Date().toISOString(),
         isRead: false,
         isStarred: true,
+        folder: 'INBOX',
         attachments: [
           {
             filename: 'Q4-Strategy.pdf',
@@ -53,7 +54,7 @@ class MockEmailService {
       {
         id: '2',
         from: [{ name: 'Michael Chen', address: 'michael@techcorp.com' }],
-        to: [{ address: this.account?.email || 'you@veebimajutus.ee' }],
+        to: [{ address: this.currentAccount?.email || 'you@veebimajutus.ee' }],
         subject: 'Project Timeline Update',
         body: {
           text: 'Hello, Quick update on the project timeline...',
@@ -62,13 +63,14 @@ class MockEmailService {
         date: new Date(Date.now() - 3600000).toISOString(),
         isRead: false,
         isStarred: false,
+        folder: 'INBOX',
         attachments: [],
         preview: 'Quick update on the project timeline. We are on track to meet the deadline...',
       },
       {
         id: '3',
         from: [{ name: 'Emma Wilson', address: 'emma@design.studio' }],
-        to: [{ address: this.account?.email || 'you@veebimajutus.ee' }],
+        to: [{ address: this.currentAccount?.email || 'you@veebimajutus.ee' }],
         subject: 'New Design Mockups Ready',
         body: {
           text: 'Hi! The new design mockups are ready for review...',
@@ -77,6 +79,7 @@ class MockEmailService {
         date: new Date(Date.now() - 7200000).toISOString(),
         isRead: false,
         isStarred: false,
+        folder: 'INBOX',
         attachments: [
           {
             filename: 'mockups-v2.zip',
@@ -89,7 +92,7 @@ class MockEmailService {
       {
         id: '4',
         from: [{ name: 'David Park', address: 'david@startup.io' }],
-        to: [{ address: this.account?.email || 'you@veebimajutus.ee' }],
+        to: [{ address: this.currentAccount?.email || 'you@veebimajutus.ee' }],
         subject: 'Meeting Notes - Product Roadmap',
         body: {
           text: 'Thanks for joining the meeting today...',
@@ -98,13 +101,14 @@ class MockEmailService {
         date: new Date(Date.now() - 86400000).toISOString(),
         isRead: true,
         isStarred: false,
+        folder: 'INBOX',
         attachments: [],
         preview: 'Thanks for joining the meeting today. Here are the key takeaways from our discussion...',
       },
       {
         id: '5',
         from: [{ name: 'Lisa Anderson', address: 'lisa@consulting.com' }],
-        to: [{ address: this.account?.email || 'you@veebimajutus.ee' }],
+        to: [{ address: this.currentAccount?.email || 'you@veebimajutus.ee' }],
         subject: 'Invoice #2024-001',
         body: {
           text: 'Please find attached the invoice for services rendered...',
@@ -113,6 +117,7 @@ class MockEmailService {
         date: new Date(Date.now() - 172800000).toISOString(),
         isRead: true,
         isStarred: true,
+        folder: 'INBOX',
         attachments: [
           {
             filename: 'invoice-2024-001.pdf',

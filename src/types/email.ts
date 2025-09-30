@@ -29,9 +29,12 @@ export interface Email {
   isDraft?: boolean;
   draftSavedAt?: string;
   preview?: string;
+  html?: string;
+  text?: string;
 }
 
 export interface EmailFolder {
+  id: string;
   name: string;
   path: string;
   specialUse?: string;

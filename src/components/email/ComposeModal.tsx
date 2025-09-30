@@ -19,7 +19,7 @@ export const ComposeModal: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const autoSaveTimerRef = useRef<NodeJS.Timeout>();
+  const autoSaveTimerRef = useRef<ReturnType<typeof setInterval>>();
 
   // Load draft on mount
   useEffect(() => {
@@ -91,7 +91,8 @@ export const ComposeModal: React.FC = () => {
     setIsDragging(true);
   };
 
-  const handleDragLeave = () => {setIsDragging(false);
+  const handleDragLeave = () => {
+    setIsDragging(false);
   };
 
   const handleDrop = (e: React.DragEvent) => {
