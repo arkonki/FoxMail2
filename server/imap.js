@@ -11,6 +11,13 @@ export class ImapService extends EventEmitter {
 
   connect(config) {
     return new Promise((resolve, reject) => {
+      console.log('🔐 ImapService.connect() called with:', {
+        user: config.email,
+        host: 'mail.veebimajutus.ee',
+        port: 993,
+        hasPassword: !!config.password
+      });
+
       this.imap = new Imap({
         user: config.email,
         password: config.password,
@@ -18,36 +25,71 @@ export class ImapService extends EventEmitter {
         port: 993,
         tls: true,
         tlsOptions: { rejectUnauthorized: false },
+        authTimeout: 10000,
+        connTimeout: 10000,
       });
 
+      let resolved = false;
+
       this.imap.once('ready', () => {
+        if (resolved) return;
+        resolved = true;
         this.connected = true;
-        console.log('✅ IMAP connected');
+        console.log('✅ IMAP ready event - Authentication SUCCESSFUL for:', config.email);
         resolve();
       });
 
       this.imap.once('error', (err) => {
-        console.error('❌ IMAP error:', err);
-        reject(err);
+        if (resolved) return;
+        resolved = true;
+        console.error('❌ IMAP error event:', {
+          message: err.message,
+          code: err.code,
+          source: err.source,
+          textCode: err.textCode
+        });
+        
+        // Check for authentication failure
+        if (err.textCode === 'AUTHENTICATIONFAILED' || 
+            err.message?.includes('Invalid credentials') ||
+            err.message?.includes('authentication failed')) {
+          reject(new Error('Invalid credentials'));
+        } else {
+          reject(err);
+        }
       });
 
       this.imap.once('end', () => {
         this.connected = false;
-        console.log('📪 IMAP disconnected');
+        console.log('📪 IMAP end event - Connection closed');
       });
 
-      this.imap.connect();
+      console.log('🔌 Calling imap.connect()...');
+      try {
+        this.imap.connect();
+      } catch (err) {
+        console.error('❌ Exception during imap.connect():', err);
+        if (!resolved) {
+          resolved = true;
+          reject(err);
+        }
+      }
     });
   }
 
   disconnect() {
     if (this.imap && this.connected) {
+      console.log('📪 Disconnecting IMAP...');
       this.imap.end();
     }
   }
 
   async getFolders() {
     return new Promise((resolve, reject) => {
+      if (!this.connected) {
+        return reject(new Error('Not connected to IMAP server'));
+      }
+
       this.imap.getBoxes((err, boxes) => {
         if (err) return reject(err);
 
@@ -88,6 +130,10 @@ export class ImapService extends EventEmitter {
 
   async getEmails(folderPath, limit = 50) {
     return new Promise((resolve, reject) => {
+      if (!this.connected) {
+        return reject(new Error('Not connected to IMAP server'));
+      }
+
       this.imap.openBox(folderPath, false, (err, box) => {
         if (err) return reject(err);
 
@@ -165,6 +211,10 @@ export class ImapService extends EventEmitter {
 
   async markAsRead(folder, uid) {
     return new Promise((resolve, reject) => {
+      if (!this.connected) {
+        return reject(new Error('Not connected to IMAP server'));
+      }
+
       this.imap.openBox(folder, false, (err) => {
         if (err) return reject(err);
 
@@ -178,6 +228,10 @@ export class ImapService extends EventEmitter {
 
   async toggleStar(folder, uid, isStarred) {
     return new Promise((resolve, reject) => {
+      if (!this.connected) {
+        return reject(new Error('Not connected to IMAP server'));
+      }
+
       this.imap.openBox(folder, false, (err) => {
         if (err) return reject(err);
 
@@ -192,6 +246,10 @@ export class ImapService extends EventEmitter {
 
   async deleteEmail(folder, uid) {
     return new Promise((resolve, reject) => {
+      if (!this.connected) {
+        return reject(new Error('Not connected to IMAP server'));
+      }
+
       this.imap.openBox(folder, false, (err) => {
         if (err) return reject(err);
 
@@ -205,6 +263,10 @@ export class ImapService extends EventEmitter {
 
   async moveEmail(fromFolder, uid, toFolder) {
     return new Promise((resolve, reject) => {
+      if (!this.connected) {
+        return reject(new Error('Not connected to IMAP server'));
+      }
+
       this.imap.openBox(fromFolder, false, (err) => {
         if (err) return reject(err);
 

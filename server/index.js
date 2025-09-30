@@ -14,36 +14,54 @@ const imapSessions = new Map();
 
 // Connect to IMAP
 app.post('/api/imap/connect', async (req, res) => {
+  console.log('\n========================================');
+  console.log('🔌 NEW CONNECTION REQUEST');
+  console.log('========================================');
+  console.log('Request body:', JSON.stringify(req.body, null, 2));
+  
   try {
-    console.log('🔌 Connect request received:', { email: req.body.email, sessionId: req.body.sessionId });
     const { email, password, sessionId } = req.body;
     
     if (!email || !password) {
-      console.error('❌ Missing credentials');
+      console.error('❌ VALIDATION FAILED: Missing credentials');
       return res.status(400).json({ error: 'Email and password are required' });
     }
     
+    console.log('✅ Credentials present:', { email, sessionId, passwordLength: password.length });
+    
     const imapService = new ImapService();
     
-    // CRITICAL: Actually connect to IMAP server to validate credentials
-    console.log('🔐 Attempting IMAP authentication...');
-    await imapService.connect({ email, password });
-    console.log('✅ IMAP authentication successful');
+    console.log('🔐 ATTEMPTING IMAP AUTHENTICATION...');
+    console.log('Server: mail.veebimajutus.ee:993');
+    console.log('User:', email);
     
-    imapSessions.set(sessionId, { imapService, account: { email, password } });
-    console.log('✅ Session created:', sessionId);
-    
-    res.json({ success: true });
+    try {
+      await imapService.connect({ email, password });
+      console.log('✅ ✅ ✅ AUTHENTICATION SUCCESSFUL ✅ ✅ ✅');
+      
+      imapSessions.set(sessionId, { imapService, account: { email, password } });
+      console.log('✅ Session stored:', sessionId);
+      console.log('Active sessions:', imapSessions.size);
+      
+      res.json({ success: true });
+    } catch (authError) {
+      console.error('❌ ❌ ❌ AUTHENTICATION FAILED ❌ ❌ ❌');
+      console.error('Error details:', {
+        message: authError.message,
+        code: authError.code,
+        stack: authError.stack
+      });
+      
+      return res.status(401).json({ 
+        error: 'Invalid email or password - Authentication failed'
+      });
+    }
   } catch (error) {
-    console.error('❌ IMAP connect error:', error);
-    // Return proper authentication error
-    const errorMessage = error.message || 'Authentication failed';
-    res.status(401).json({ 
-      error: errorMessage.includes('Invalid credentials') || errorMessage.includes('AUTHENTICATIONFAILED')
-        ? 'Invalid email or password'
-        : 'Failed to connect to email server'
-    });
+    console.error('❌ UNEXPECTED ERROR:', error);
+    res.status(500).json({ error: 'Server error during authentication' });
   }
+  
+  console.log('========================================\n');
 });
 
 // Disconnect from IMAP
@@ -204,11 +222,12 @@ app.post('/api/smtp/send', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`✅ Email server running on port ${PORT}`);
+  console.log(`\n✅ Email server running on port ${PORT}`);
   console.log(`📧 Using maintained libraries:`);
   console.log(`   - node-imap (IMAP client)`);
   console.log(`   - nodemailer (SMTP client)`);
   console.log(`   - mailparser (MIME parsing)`);
-  console.log(`\n🔍 Debug logging enabled`);
-  console.log(`🔐 Authentication validation: ENABLED`);
+  console.log(`\n🔍 COMPREHENSIVE DEBUG LOGGING ENABLED`);
+  console.log(`🔐 Authentication validation: ENFORCED`);
+  console.log(`\nWaiting for connections...\n`);
 });
