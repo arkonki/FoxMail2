@@ -3,7 +3,6 @@ import { Email, EmailAccount, EmailFolder } from '../types/email';
 
 class EmailService {
   private connected = false;
-  private account: EmailAccount | null = null;
 
   async connect(account: EmailAccount): Promise<void> {
     console.log('🔌 EmailService.connect() called with:', account.email);
@@ -16,7 +15,6 @@ class EmailService {
 
       if (response.data.success) {
         this.connected = true;
-        this.account = account;
         console.log('✅ EmailService connection successful, connected =', this.connected);
       } else {
         throw new Error(response.data.error || 'Connection failed');
@@ -24,7 +22,6 @@ class EmailService {
     } catch (error) {
       console.error('❌ EmailService connection failed:', error);
       this.connected = false;
-      this.account = null;
       throw error;
     }
   }
@@ -40,13 +37,11 @@ class EmailService {
     try {
       await axios.post('/api/disconnect');
       this.connected = false;
-      this.account = null;
       console.log('✅ EmailService disconnected');
     } catch (error) {
       console.error('❌ EmailService disconnect failed:', error);
       // Still mark as disconnected locally
       this.connected = false;
-      this.account = null;
     }
   }
 

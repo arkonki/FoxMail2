@@ -4,8 +4,12 @@ import { useUIStore } from '../../store/uiStore';
 import { emailService } from '../../services/mockEmailService';
 import { Draft } from '../../types/email';
 
-export const ComposeModal: React.FC = () => {
-  const { closeCompose, currentDraft, saveDraft, clearDraft } = useUIStore();
+interface ComposeModalProps {
+  onClose: () => void;
+}
+
+export const ComposeModal: React.FC<ComposeModalProps> = ({ onClose }) => {
+  const { currentDraft, saveDraft, clearDraft } = useUIStore();
   const [to, setTo] = useState('');
   const [cc, setCc] = useState('');
   const [bcc, setBcc] = useState('');
@@ -72,7 +76,7 @@ export const ComposeModal: React.FC = () => {
         bcc ? bcc.split(',').map(e => e.trim()) : undefined
       );
       clearDraft();
-      closeCompose();
+      onClose();
     } catch (error) {
       console.error('Failed to send email:', error);
     } finally {
@@ -122,7 +126,7 @@ export const ComposeModal: React.FC = () => {
             <Maximize2 className="w-4 h-4 text-gray-600 dark:text-gray-400" />
           </button>
           <button
-            onClick={closeCompose}
+            onClick={onClose}
             className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
             aria-label="Close"
           >
@@ -154,7 +158,7 @@ export const ComposeModal: React.FC = () => {
             <Minimize2 className="w-4 h-4 text-gray-600 dark:text-gray-400" />
           </button>
           <button
-            onClick={closeCompose}
+            onClick={onClose}
             className="p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
             aria-label="Close"
           >
@@ -325,7 +329,7 @@ export const ComposeModal: React.FC = () => {
 
           <div className="flex items-center space-x-2">
             <button
-              onClick={closeCompose}
+              onClick={onClose}
               className="hidden md:block px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-sm"
             >
               Discard

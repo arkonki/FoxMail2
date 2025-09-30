@@ -17,9 +17,15 @@ import { useEmailStore } from '../../store/emailStore';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../store/authStore';
 
-export const Sidebar: React.FC = () => {
+interface SidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onCompose: () => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ onClose, onCompose }) => {
   const { folders, currentFolder, setCurrentFolder } = useEmailStore();
-  const { openCompose, theme, setTheme, setSidebarOpen } = useUIStore();
+  const { theme, setTheme } = useUIStore();
   const { logout, account } = useAuthStore();
 
   const getFolderIcon = (specialUse?: string) => {
@@ -40,12 +46,12 @@ export const Sidebar: React.FC = () => {
 
   const handleFolderClick = (path: string) => {
     setCurrentFolder(path);
-    setSidebarOpen(false); // Close sidebar on mobile after selection
+    onClose(); // Close sidebar on mobile after selection
   };
 
   const handleComposeClick = () => {
-    openCompose('new');
-    setSidebarOpen(false); // Close sidebar on mobile after compose
+    onCompose();
+    onClose(); // Close sidebar on mobile after compose
   };
 
   return (
@@ -69,7 +75,7 @@ export const Sidebar: React.FC = () => {
 
           {/* Close button for mobile */}
           <button
-            onClick={() => setSidebarOpen(false)}
+            onClick={onClose}
             className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
             aria-label="Close menu"
           >

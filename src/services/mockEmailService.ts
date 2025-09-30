@@ -1,23 +1,20 @@
 import { Email, EmailFolder, EmailAccount } from '../types/email';
 
 class MockEmailService {
-  private isConnected = false;
   private currentAccount: EmailAccount | null = null;
 
   async connect(account: EmailAccount): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 1000));
     this.currentAccount = account;
-    this.isConnected = true;
   }
 
   async disconnect(): Promise<void> {
-    this.isConnected = false;
     this.currentAccount = null;
   }
 
   async getFolders(): Promise<EmailFolder[]> {
     return [
-      { id: 'INBOX', name: 'Inbox', path: 'INBOX', specialUse: 'inbox', unreadCount: 3 },
+      { id: 'INBOX', name: 'Inbox', path: 'INBOX', specialUse: 'inbox', unreadCount: 3},
       { id: 'SENT', name: 'Sent', path: 'SENT', specialUse: 'sent', unreadCount: 0 },
       { id: 'DRAFTS', name: 'Drafts', path: 'DRAFTS', specialUse: 'drafts', unreadCount: 1 },
       { id: 'TRASH', name: 'Trash', path: 'TRASH', specialUse: 'trash', unreadCount: 0 },
