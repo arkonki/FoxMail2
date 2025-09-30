@@ -8,17 +8,14 @@
 - SSL certificate (Let's Encrypt recommended)
 - Root or sudo access
 
-## Deployment Options
+## Deployment Architecture
 
-### Option 1: VPS/Cloud Server (Recommended)
-Best for: Full control, scalability, production use
-
-### Option 2: Shared Hosting with Node.js Support
-Best for: Budget-friendly, managed environment
+**Frontend**: Static files served by nginx
+**Backend**: Node.js API server managed by PM2
 
 ---
 
-## 🔧 Option 1: VPS Deployment (nginx + PM2)
+## 🔧 Production Deployment Steps
 
 ### Step 1: Server Setup
 
@@ -90,49 +87,16 @@ CORS_ORIGIN=https://webmail.veebimajutus.ee
 LOG_LEVEL=info
 ```
 
-### Step 4: PM2 Configuration
-
-Create PM2 ecosystem file:
+### Step 4: Start Backend with PM2
 
 ```bash
-nano ecosystem.config.js
-```
+# Start backend
+pm2 start ecosystem.config.cjs
 
-```javascript
-module.exports = {
-  apps: [{
-    name: 'webmail-backend',
-    cwd: '/var/www/webmail/server',
-    script: 'index.js',
-    instances: 2,
-    exec_mode: 'cluster',
-    env: {
-      NODE_ENV: 'production',
-      PORT: 3001
-    },
-    error_file: '/var/log/webmail/error.log',
-    out_file: '/var/log/webmail/out.log',
-    log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
-    merge_logs: true,
-    autorestart: true,
-    max_memory_restart: '500M',
-    watch: false
-  }]
-};
-```
-
-Create log directory:
-
-```bash
-sudo mkdir -p /var/log/webmail
-sudo chown -R $USER:$USER /var/log/webmail
-```
-
-Start the application:
-
-```bash
-pm2 start ecosystem.config.js
+# Save PM2 configuration
 pm2 save
+
+# Setup PM2 startup script (first time only)
 pm2 startup
 ```
 
@@ -248,79 +212,67 @@ sudo ufw enable
 
 ---
 
-## 🔧 Option 2: Shared Hosting Deployment
+## 🔄 Deployment Updates
 
-### Requirements
-- Node.js support (check with hosting provider)
-- SSH access
-- Domain/subdomain configured
+### Update application:
 
-### Steps
-
-1. **Build locally:**
 ```bash
+cd /var/www/webmail
+
+# Pull latest changes
+git pull
+
+# Install dependencies
+npm run install:all
+
+# Build frontend
 npm run build
+
+# Restart backend
+pm2 restart webmail-backend
+
+# No need to restart nginx - static files updated automatically
 ```
-
-2. **Upload files via FTP/SFTP:**
-   - Upload `dist/` folder contents to public_html
-   - Upload `server/` folder
-   - Upload `package.json` files
-
-3. **Install dependencies on server:**
-```bash
-cd ~/server
-npm install --production
-```
-
-4. **Configure .htaccess (if Apache):**
-```apache
-<IfModule mod_rewrite.c>
-  RewriteEngine On
-  RewriteBase /
-  
-  # API proxy
-  RewriteRule ^api/(.*)$ http://localhost:3001/api/$1 [P,L]
-  
-  # SPA routing
-  RewriteRule ^index\.html$ - [L]
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteRule . /index.html [L]
-</IfModule>
-```
-
-5. **Start backend (using hosting's Node.js manager or PM2)**
 
 ---
 
-## 📋 Production Checklist
+## 📊 Monitoring
 
-### Security
-- [ ] SSL certificate installed and working
-- [ ] Environment variables configured
-- [ ] CORS configured for production domain
-- [ ] Security headers enabled
-- [ ] Firewall configured
-- [ ] Rate limiting enabled (optional)
-- [ ] Session secrets changed from defaults
+### Check Backend Status
+```bash
+# View PM2 status
+pm2 status
 
-### Performance
-- [ ] Frontend built and optimized
-- [ ] Gzip compression enabled
-- [ ] Static assets cached
-- [ ] PM2 cluster mode enabled
-- [ ] Database connections pooled (if applicable)
+# View backend logs
+pm2 logs webmail-backend
 
-### Monitoring
-- [ ] PM2 monitoring enabled
-- [ ] Log rotation configured
-- [ ] Error tracking setup (optional: Sentry)
-- [ ] Uptime monitoring (optional: UptimeRobot)
+# Monitor resources
+pm2 monit
+```
 
-### Backup
-- [ ] Automated backups configured
-- [ ] Backup restoration tested
+### Check nginx Status
+```bash
+# Check nginx status
+sudo systemctl status nginx
+
+# View nginx access logs
+sudo tail -f /var/log/nginx/access.log
+
+# View nginx error logs
+sudo tail -f /var/log/nginx/error.log
+```
+
+### System Resources
+```bash
+# Check disk space
+df -h
+
+# Check memory
+free -h
+
+# Check CPU
+top
+```
 
 ---
 
@@ -350,165 +302,81 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-### SSL issues
+### Frontend not loading
 ```bash
-# Check certificate
-sudo certbot certificates
+# Check if files exist
+ls -la /var/www/webmail/dist/
 
-# Renew certificate
-sudo certbot renew
+# Check nginx is serving files
+curl -I http://localhost/
+
+# Check file permissions
+sudo chown -R www-data:www-data /var/www/webmail/dist/
 ```
 
-### Connection issues
+### API calls failing
 ```bash
-# Test IMAP connection
-telnet mail.veebimajutus.ee 993
+# Check backend is running
+pm2 status
 
-# Test SMTP connection
-telnet mail.veebimajutus.ee 465
+# Check backend logs
+pm2 logs webmail-backend
 
-# Check firewall
-sudo ufw status
+# Test API directly
+curl http://localhost:3001/api/health
+
+# Check nginx proxy
+sudo tail -f /var/log/nginx/error.log
 ```
 
 ---
 
-## 🔄 Deployment Updates
+## 🎯 Quick Deploy Script
 
-### Update application:
+Create a deployment script:
 
 ```bash
+nano ~/deploy-webmail.sh
+```
+
+```bash
+#!/bin/bash
+set -e
+
+echo "🚀 Deploying Webmail..."
+
 cd /var/www/webmail
 
 # Pull latest changes
+echo "📥 Pulling latest changes..."
 git pull
 
 # Install dependencies
+echo "📦 Installing dependencies..."
 npm run install:all
 
 # Build frontend
+echo "🔨 Building frontend..."
 npm run build
 
 # Restart backend
+echo "🔄 Restarting backend..."
 pm2 restart webmail-backend
 
-# Reload nginx (if config changed)
-sudo systemctl reload nginx
-```
-
----
-
-## 📊 Monitoring
-
-### PM2 Monitoring
-```bash
-# View status
-pm2 status
-
-# View logs
-pm2 logs
-
-# Monitor resources
-pm2 monit
-```
-
-### System Resources
-```bash
-# Check disk space
-df -h
-
-# Check memory
-free -h
-
-# Check CPU
-top
-```
-
----
-
-## 🎯 Performance Optimization
-
-### 1. Enable HTTP/2
-Already configured in nginx config above
-
-### 2. Enable Brotli Compression (optional)
-```bash
-sudo apt install -y nginx-module-brotli
-```
-
-### 3. CDN Integration (optional)
-- Use Cloudflare for static assets
-- Configure in DNS settings
-
-### 4. Database Optimization (future)
-- Use connection pooling
-- Enable query caching
-- Regular maintenance
-
----
-
-## 🔐 Security Hardening
-
-### 1. Fail2ban (prevent brute force)
-```bash
-sudo apt install -y fail2ban
-sudo systemctl enable fail2ban
-```
-
-### 2. Regular Updates
-```bash
-# Create update script
-nano ~/update-system.sh
+echo "✅ Deployment complete!"
+echo ""
+echo "📊 Backend status:"
+pm2 status webmail-backend
 ```
 
 ```bash
-#!/bin/bash
-sudo apt update
-sudo apt upgrade -y
-sudo apt autoremove -y
-pm2 update
+chmod +x ~/deploy-webmail.sh
 ```
 
+Run deployment:
 ```bash
-chmod +x ~/update-system.sh
+~/deploy-webmail.sh
 ```
-
-### 3. Backup Script
-```bash
-nano ~/backup-webmail.sh
-```
-
-```bash
-#!/bin/bash
-BACKUP_DIR="/var/backups/webmail"
-DATE=$(date +%Y%m%d_%H%M%S)
-
-mkdir -p $BACKUP_DIR
-
-# Backup application
-tar -czf $BACKUP_DIR/webmail_$DATE.tar.gz /var/www/webmail
-
-# Keep only last 7 days
-find $BACKUP_DIR -name "webmail_*.tar.gz" -mtime +7 -delete
-```
-
-```bash
-chmod +x ~/backup-webmail.sh
-
-# Add to crontab (daily at 2 AM)
-crontab -e
-# Add: 0 2 * * * /home/username/backup-webmail.sh
-```
-
----
-
-## 📞 Support
-
-For issues:
-1. Check logs: `pm2 logs` and `/var/log/nginx/error.log`
-2. Verify configuration: `sudo nginx -t`
-3. Check service status: `pm2 status`
-4. Review this guide's troubleshooting section
 
 ---
 
@@ -516,6 +384,11 @@ For issues:
 
 Your webmail application should now be running at:
 **https://webmail.veebimajutus.ee**
+
+**Architecture:**
+- ✅ Frontend: Static files served by nginx from `/var/www/webmail/dist/`
+- ✅ Backend: Node.js API managed by PM2 on port 3001
+- ✅ nginx: Proxies `/api` requests to backend, serves static files for everything else
 
 Test all features:
 - [ ] Login works

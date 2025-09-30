@@ -33,10 +33,10 @@ if ! command -v pm2 &> /dev/null; then
 fi
 
 # Stop existing process
-echo -e "${YELLOW}🛑 Stopping existing process...${NC}"
+echo -e "${YELLOW}🛑 Stopping existing backend process...${NC}"
 pm2 stop webmail-backend 2>/dev/null || true
 
-# Start with PM2 using .cjs config file
+# Start backend with PM2
 echo -e "${YELLOW}▶️  Starting backend with PM2...${NC}"
 pm2 start ecosystem.config.cjs
 
@@ -51,6 +51,11 @@ fi
 
 echo -e "${GREEN}✅ Deployment complete!${NC}"
 echo ""
-echo "📊 Check status: pm2 status"
-echo "📝 View logs: pm2 logs webmail-backend"
-echo "🔄 Restart: pm2 restart webmail-backend"
+echo "📊 Backend status:"
+pm2 status webmail-backend
+echo ""
+echo "📝 View backend logs: pm2 logs webmail-backend"
+echo "🔄 Restart backend: pm2 restart webmail-backend"
+echo ""
+echo "📁 Frontend built to: ./dist/"
+echo "🌐 Make sure nginx is configured to serve from this directory"
