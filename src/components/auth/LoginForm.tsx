@@ -17,14 +17,19 @@ export const LoginForm: React.FC = () => {
     setError('');
     setIsLoading(true);
 
+    console.log('🔐 LoginForm: Starting login for:', email);
+
     try {
-      console.log('🔐 LoginForm: Starting login for:', email);
-      
-      // Connect to email server
+      // CRITICAL: Actually connect to the backend
       console.log('🔌 LoginForm: Calling emailService.connect()...');
       await emailService.connect({ email, password });
       console.log('✅ LoginForm: emailService.connect() successful');
-      console.log('🔍 LoginForm: Checking connection state:', emailService.isConnected());
+      console.log('🔍 LoginForm: Connection state:', emailService.isConnected());
+
+      // Verify connection was successful
+      if (!emailService.isConnected()) {
+        throw new Error('Connection failed - service not connected');
+      }
 
       // Get folders
       console.log('📁 LoginForm: Fetching folders...');

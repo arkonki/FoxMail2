@@ -17,16 +17,20 @@ class EmailService {
       this.sessionId = this.generateSessionId();
       console.log('🆔 Generated session ID:', this.sessionId);
 
-      const response = await axios.post('http://localhost:3001/api/imap/connect', {
+      console.log('📡 Making POST request to /api/imap/connect...');
+      const response = await axios.post('/api/imap/connect', {
         email: account.email,
         password: account.password,
         sessionId: this.sessionId,
       });
 
+      console.log('📡 Response received:', response.data);
+
       if (response.data.success) {
         this.connected = true;
         console.log('✅ EmailService connection successful, connected =', this.connected);
       } else {
+        this.connected = false;
         throw new Error(response.data.error || 'Connection failed');
       }
     } catch (error) {
@@ -35,10 +39,15 @@ class EmailService {
       this.sessionId = null;
       
       // Re-throw with user-friendly message
-      if (axios.isAxiosError(error) && error.response) {
-        throw new Error(error.response.data.error || 'Authentication failed');
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          throw new Error('Invalid email or password');
+        }
+        if (error.response?.data?.error) {
+          throw new Error(error.response.data.error);
+        }
       }
-      throw error;
+      throw new Error('Failed to connect to email server');
     }
   }
 
@@ -56,7 +65,7 @@ class EmailService {
     }
 
     try {
-      await axios.post('http://localhost:3001/api/imap/disconnect', {
+      await axios.post('/api/imap/disconnect', {
         sessionId: this.sessionId,
       });
       this.connected = false;
@@ -78,7 +87,7 @@ class EmailService {
     }
 
     try {
-      const response = await axios.post('http://localhost:3001/api/imap/folders', {
+      const response = await axios.post('/api/imap/folders', {
         sessionId: this.sessionId,
       });
       console.log('✅ Folders received:', response.data.folders?.length || 0);
@@ -97,7 +106,7 @@ class EmailService {
     }
 
     try {
-      const response = await axios.post('http://localhost:3001/api/imap/emails', {
+      const response = await axios.post('/api/imap/emails', {
         sessionId: this.sessionId,
         folder,
         limit,
@@ -118,7 +127,7 @@ class EmailService {
     }
 
     try {
-      await axios.post('http://localhost:3001/api/imap/mark-read', {
+      await axios.post('/api/imap/mark-read', {
         sessionId: this.sessionId,
         folder,
         uid,
@@ -138,7 +147,7 @@ class EmailService {
     }
 
     try {
-      await axios.post('http://localhost:3001/api/imap/toggle-star', {
+      await axios.post('/api/imap/toggle-star', {
         sessionId: this.sessionId,
         folder,
         uid,
@@ -159,7 +168,7 @@ class EmailService {
     }
 
     try {
-      await axios.post('http://localhost:3001/api/imap/delete', {
+      await axios.post('/api/imap/delete', {
         sessionId: this.sessionId,
         folder,
         uid,
@@ -179,7 +188,7 @@ class EmailService {
     }
 
     try {
-      await axios.post('http://localhost:3001/api/imap/move', {
+      await axios.post('/api/imap/move', {
         sessionId: this.sessionId,
         fromFolder,
         uid,
@@ -200,7 +209,7 @@ class EmailService {
     }
 
     try {
-      await axios.post('http://localhost:3001/api/smtp/send', {
+      await axios.post('/api/smtp/send', {
         sessionId: this.sessionId,
         emailData,
       });
