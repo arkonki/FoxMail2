@@ -13,7 +13,7 @@ app.use(express.json({ limit: '50mb' }));
 const imapSessions = new Map();
 
 // Connect to IMAP
-app.post('/api/imap/connect', async (req, res) => {
+app.post('/ws/imap/connect', async (req, res) => {
   console.log('\n========================================');
   console.log('🔌 NEW CONNECTION REQUEST');
   console.log('========================================');
@@ -65,7 +65,7 @@ app.post('/api/imap/connect', async (req, res) => {
 });
 
 // Disconnect from IMAP
-app.post('/api/imap/disconnect', async (req, res) => {
+app.post('/ws/imap/disconnect', async (req, res) => {
   try {
     const { sessionId } = req.body;
     const session = imapSessions.get(sessionId);
@@ -84,7 +84,7 @@ app.post('/api/imap/disconnect', async (req, res) => {
 });
 
 // Get folders
-app.post('/api/imap/folders', async (req, res) => {
+app.post('/ws/imap/folders', async (req, res) => {
   try {
     console.log('📁 Folders request:', req.body.sessionId);
     const { sessionId } = req.body;
@@ -105,7 +105,7 @@ app.post('/api/imap/folders', async (req, res) => {
 });
 
 // Get emails
-app.post('/api/imap/emails', async (req, res) => {
+app.post('/ws/imap/emails', async (req, res) => {
   try {
     console.log('📧 Emails request:', { sessionId: req.body.sessionId, folder: req.body.folder, limit: req.body.limit });
     const { sessionId, folder, limit } = req.body;
@@ -127,7 +127,7 @@ app.post('/api/imap/emails', async (req, res) => {
 });
 
 // Mark as read
-app.post('/api/imap/mark-read', async (req, res) => {
+app.post('/ws/imap/mark-read', async (req, res) => {
   try {
     const { sessionId, folder, uid } = req.body;
     const session = imapSessions.get(sessionId);
@@ -146,7 +146,7 @@ app.post('/api/imap/mark-read', async (req, res) => {
 });
 
 // Toggle star
-app.post('/api/imap/toggle-star', async (req, res) => {
+app.post('/ws/imap/toggle-star', async (req, res) => {
   try {
     const { sessionId, folder, uid, isStarred } = req.body;
     const session = imapSessions.get(sessionId);
@@ -165,7 +165,7 @@ app.post('/api/imap/toggle-star', async (req, res) => {
 });
 
 // Delete email
-app.post('/api/imap/delete', async (req, res) => {
+app.post('/ws/imap/delete', async (req, res) => {
   try {
     const { sessionId, folder, uid } = req.body;
     const session = imapSessions.get(sessionId);
@@ -184,7 +184,7 @@ app.post('/api/imap/delete', async (req, res) => {
 });
 
 // Move email
-app.post('/api/imap/move', async (req, res) => {
+app.post('/ws/imap/move', async (req, res) => {
   try {
     const { sessionId, fromFolder, uid, toFolder } = req.body;
     const session = imapSessions.get(sessionId);
@@ -203,7 +203,7 @@ app.post('/api/imap/move', async (req, res) => {
 });
 
 // Send email
-app.post('/api/smtp/send', async (req, res) => {
+app.post('/ws/smtp/send', async (req, res) => {
   try {
     const { sessionId, emailData } = req.body;
     const session = imapSessions.get(sessionId);
@@ -229,5 +229,6 @@ app.listen(PORT, () => {
   console.log(`   - mailparser (MIME parsing)`);
   console.log(`\n🔍 COMPREHENSIVE DEBUG LOGGING ENABLED`);
   console.log(`🔐 Authentication validation: ENFORCED`);
+  console.log(`🌐 API Routes: /ws/imap/* and /ws/smtp/*`);
   console.log(`\nWaiting for connections...\n`);
 });

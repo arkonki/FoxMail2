@@ -5,11 +5,9 @@ class EmailService {
   private sessionId: string | null = null;
   private connected = false;
 
-  // CRITICAL: Ensure we're using the correct API base URL
+  // CRITICAL: Use /ws path which is already proxied in Apache
   private getApiUrl(endpoint: string): string {
-    // In production, API calls go through Apache ProxyPass at /api
-    // In development, Vite proxy handles /api -> http://localhost:3001/api
-    const apiUrl = `/api${endpoint}`;
+    const apiUrl = `/ws${endpoint}`;
     console.log('🌐 API URL:', apiUrl);
     return apiUrl;
   }
