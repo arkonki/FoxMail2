@@ -5,13 +5,14 @@
 RewriteEngine On
 RewriteBase /
 
-# CRITICAL: Don't touch /api requests - let Apache VirtualHost handle them
+# CRITICAL: Don't touch /ws requests - let Apache VirtualHost handle them
 # This includes both HTTP and WebSocket connections
-RewriteCond %{REQUEST_URI} ^/api [NC]
+RewriteCond %{REQUEST_URI} ^/ws [NC]
 RewriteRule ^ - [L]
 
 # SPA Routing - Fallback to index.html for all other routes
 # Don't rewrite files or directories that exist
+RewriteCond %{REQUEST_URI} !^/ws [NC]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 
